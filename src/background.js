@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const SETTINGS_KEY = "pipPlusSettings";
+
 // Runs when the extension action icon is clicked.
 chrome.action.onClicked.addListener((tab) => {
   chrome.scripting.executeScript({
@@ -29,33 +31,54 @@ chrome.runtime.onInstalled.addListener(async () => {
     type: "checkbox",
     checked: autoPip,
   });
-  updateContentScripts(autoPip);
+  await refreshAutoPipState();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  const { autoPip } = await chrome.storage.local.get({ autoPip: true });
   chrome.action.setBadgeBackgroundColor({ color: "#4285F4" });
   chrome.action.setBadgeTextColor({ color: "#fff" });
-  updateContentScripts(autoPip);
+  await refreshAutoPipState();
 });
 
-chrome.contextMenus.onClicked.addListener(({ checked: autoPip }) => {
+chrome.contextMenus.onClicked.addListener(async ({ checked: autoPip }) => {
   chrome.storage.local.set({ autoPip });
-  updateContentScripts(autoPip);
+  await refreshAutoPipState();
 });
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if ((area === "local" && changes.autoPip) ||
+      (area === "sync" && changes[SETTINGS_KEY])) {
+    await refreshAutoPipState();
+  }
+});
+
+async function refreshAutoPipState() {
+  const [{ autoPip: menuAutoPip }, syncData] = await Promise.all([
+    chrome.storage.local.get({ autoPip: true }),
+    chrome.storage.sync.get(SETTINGS_KEY),
+  ]);
+
+  const settings = syncData[SETTINGS_KEY] || {};
+  const enabled = !!(menuAutoPip || settings.autoPip || settings.autoPipMinimize);
+
+  await updateContentScripts(enabled);
+}
 
 // Registers or removes the auto PiP content script.
-function updateContentScripts(autoPip) {
-  chrome.action.setTitle({title: `Automatic picture-in-picture (${autoPip ? "on" : "off"})`});
-  chrome.action.setBadgeText({ text: autoPip ? "★" : "" });
-  if (!autoPip) {
-    chrome.scripting.unregisterContentScripts({ ids: ["autoPip"] });
+async function updateContentScripts(autoPipEnabled) {
+  chrome.action.setTitle({title: `Automatic picture-in-picture (${autoPipEnabled ? "on" : "off"})`});
+  chrome.action.setBadgeText({ text: autoPipEnabled ? "★" : "" });
+
+  await chrome.scripting.unregisterContentScripts({ ids: ["autoPip"] }).catch(() => {});
+
+  if (!autoPipEnabled) {
     return;
   }
-  chrome.scripting.registerContentScripts([{
+
+  await chrome.scripting.registerContentScripts([{
     id: "autoPip",
     js: ["autoPip.js"],
     matches: ["<all_urls>"],
     runAt: "document_start"
-  }])
+  }]);
 }

@@ -12,6 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const SETTINGS_KEY = "pipPlusSettings";
+const DEFAULT_SETTINGS = {
+  autoPip: false,
+  autoPipMinimize: false,
+};
+
+let settings = { ...DEFAULT_SETTINGS };
+let lastAutoPipRequest = 0;
+
 function findLargestPlayingVideo() {
   const videos = Array.from(document.querySelectorAll("video"))
     .filter((video) => video.readyState != 0)
@@ -29,10 +38,66 @@ function findLargestPlayingVideo() {
   return videos[0];
 }
 
+function loadSettings() {
+  chrome.storage.sync.get(SETTINGS_KEY, (data) => {
+    settings = {
+      ...DEFAULT_SETTINGS,
+      ...(data[SETTINGS_KEY] || {}),
+    };
+  });
+}
+
+function maybeRequestAutoPip() {
+  const now = Date.now();
+  if (now - lastAutoPipRequest < 1000) {
+    return;
+  }
+
+  const video = findLargestPlayingVideo();
+  if (!video || video.paused || video.ended || document.pictureInPictureElement === video) {
+    return;
+  }
+
+  lastAutoPipRequest = now;
+  video.requestPictureInPicture().catch(() => {});
+}
+
 // Requests PiP when Chrome triggers the automatic PiP media action.
 navigator.mediaSession.setActionHandler("enterpictureinpicture", () => {
-  const video = findLargestPlayingVideo();
-  if (video) {
-    video.requestPictureInPicture();
+  if (settings.autoPip || settings.autoPipMinimize) {
+    maybeRequestAutoPip();
   }
+});
+
+loadSettings();
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && changes[SETTINGS_KEY]) {
+    settings = {
+      ...DEFAULT_SETTINGS,
+      ...(changes[SETTINGS_KEY].newValue || {}),
+    };
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden") {
+    return;
+  }
+
+  if (settings.autoPip || settings.autoPipMinimize) {
+    maybeRequestAutoPip();
+  }
+});
+
+window.addEventListener("blur", () => {
+  if (!settings.autoPipMinimize) {
+    return;
+  }
+
+  setTimeout(() => {
+    if (document.visibilityState === "hidden") {
+      maybeRequestAutoPip();
+    }
+  }, 50);
 });
