@@ -1,7 +1,7 @@
 {
-  "name": "Picture-in-Picture Extension (by Google)",
-  "description": "Watch video using Picture-in-Picture",
-  "version": "1.14",
+  "name": "PiP+",
+  "description": "Custom Picture-in-Picture controls and settings",
+  "version": "1.0",
   "icons": {
     "128": "assets/icon128.png"
   },
@@ -12,8 +12,30 @@
     "default_icon": {
       "19": "assets/icon19.png",
       "38": "assets/icon38.png"
-    }
+    },
+    "default_popup": "popup.html"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "settings-bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "youtube-button.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
   "commands": {
     "_execute_action": {
       "suggested_key": {
