@@ -29,7 +29,7 @@ function findLargestPlayingVideo() {
   return videos[0];
 }
 
-// Request video to automatically enter picture-in-picture when eligible.
+// Requests PiP when Chrome triggers the automatic PiP media action.
 navigator.mediaSession.setActionHandler("enterpictureinpicture", () => {
   const video = findLargestPlayingVideo();
   if (video) {

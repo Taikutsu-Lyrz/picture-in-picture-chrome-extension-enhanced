@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Runs when the extension action icon is clicked.
 chrome.action.onClicked.addListener((tab) => {
   chrome.scripting.executeScript({
     target: { tabId: tab.id, allFrames: true },
@@ -43,6 +44,7 @@ chrome.contextMenus.onClicked.addListener(({ checked: autoPip }) => {
   updateContentScripts(autoPip);
 });
 
+// Registers or removes the auto PiP content script.
 function updateContentScripts(autoPip) {
   chrome.action.setTitle({title: `Automatic picture-in-picture (${autoPip ? "on" : "off"})`});
   chrome.action.setBadgeText({ text: autoPip ? "★" : "" });

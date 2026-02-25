@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PiP+</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 280px;
+      background: #1a1a1a;
+      color: #e8e8e8;
+      font-family: "Segoe UI", "Roboto", Arial, sans-serif;
+      font-size: 13px;
+      padding: 16px;
+      border-radius: 12px;
+      user-select: none;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .header svg {
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .pip-toggle {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #2962ff;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background .15s, transform .1s;
+      margin-bottom: 14px;
+    }
+
+    .pip-toggle:hover {
+      background: #1a50e2;
+    }
+
+    .pip-toggle:active {
+      transform: scale(0.98);
+    }
+
+    .pip-toggle.active {
+      background: #c62828;
+    }
+
+    .pip-toggle.active:hover {
+      background: #a31f1f;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .control-row svg {
+      flex-shrink: 0;
+      opacity: .7;
+    }
+
+    .control-row .label {
+      min-width: 36px;
+      text-align: right;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      opacity: .8;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, .15);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+    }
+
+    /* ── Settings section ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: rgba(255, 255, 255, .35);
+      margin: 14px 0 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+    }
+
+    .setting-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, .85);
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 34px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle .slider {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, .15);
+      border-radius: 18px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .toggle .slider::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform .2s;
+    }
+
+    .toggle input:checked+.slider {
+      background: #2962ff;
+    }
+
+    .toggle input:checked+.slider::before {
+      transform: translateX(16px);
+    }
+
+    .status {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, .08);
+      font-size: 11px;
+      color: rgba(255, 255, 255, .4);
+      text-align: center;
+    }
+
+    .no-video {
+      text-align: center;
+      padding: 20px 0;
+      color: rgba(255, 255, 255, .4);
+      font-size: 12px;
+    }
+
+    .no-video svg {
+      margin-bottom: 8px;
+      opacity: .3;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="#4285f4">
+      <path
+        d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z" />
+    </svg>
+    <h1>PiP+</h1>
+  </div>
+
+  <div id="noVideo" style="display:none;" class="no-video">
+    <svg viewBox="0 0 24 24" width="36" height="36" fill="white">
+      <path
+        d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9.5 8.5l7 4.5-7 4.5z" />
+    </svg>
+    <div>No video found on this page</div>
+  </div>
+
+  <div id="controls" style="display:none;">
+    <button class="pip-toggle" id="pipBtn">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path
+          d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z" />
+      </svg>
+      <span id="pipLabel">Enter PiP</span>
+    </button>
+
+    <div class="control-row">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="white">
+        <path
+          d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+      </svg>
+      <input type="range" id="volSlider" min="0" max="100" value="100">
+      <span class="label" id="volLabel">100%</span>
+    </div>
+
+    <!-- Settings -->
+    <div class="section-title">PiP Settings</div>
+
+
+    <div class="setting-row">
+      <span class="setting-label">Auto PiP on tab switch</span>
+      <label class="toggle">
+        <input type="checkbox" id="optAutoPip">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-label">Auto PiP on minimize</span>
+      <label class="toggle">
+        <input type="checkbox" id="optAutoPipMinimize">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-label">Loop toggle</span>
+      <label class="toggle">
+        <input type="checkbox" id="optLoop">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+
+
+    <div class="status" id="statusText">Click the button or press Alt+P</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
