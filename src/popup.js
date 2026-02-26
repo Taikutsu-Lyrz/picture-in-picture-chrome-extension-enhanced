@@ -75,7 +75,7 @@
             func: () => {
                 const vids = document.querySelectorAll('video');
                 for (const v of vids) {
-                    if (v.readyState > 0 && !v.disablePictureInPicture) {
+                    if (!v.disablePictureInPicture) {
                         return {
                             volume: Math.round(v.volume * 100),
                             pip: !!document.pictureInPictureElement,

@@ -27,6 +27,8 @@
     var settings = {
         loopToggle: false,
     };
+    var trackedVideo = null;
+    var trackedHandlers = null;
 
     // -- Load settings from storage --
     function loadSettings(cb) {
@@ -81,10 +83,68 @@
         }
     }
 
+    function setPositionStateForVideo(video) {
+        try {
+            if (!video || !video.duration || !isFinite(video.duration)) {
+                return;
+            }
+            navigator.mediaSession.setPositionState({
+                duration: video.duration,
+                playbackRate: video.playbackRate || 1,
+                position: Math.min(video.currentTime, video.duration),
+            });
+        } catch (e) { }
+    }
+
+    function bindPositionTracking(video) {
+        if (!video) return;
+        if (trackedVideo === video) {
+            setPositionStateForVideo(video);
+            return;
+        }
+
+        if (trackedVideo && trackedHandlers) {
+            trackedVideo.removeEventListener('timeupdate', trackedHandlers.update);
+            trackedVideo.removeEventListener('loadedmetadata', trackedHandlers.update);
+            trackedVideo.removeEventListener('durationchange', trackedHandlers.update);
+            trackedVideo.removeEventListener('seeked', trackedHandlers.update);
+            trackedVideo.removeEventListener('ratechange', trackedHandlers.update);
+            trackedVideo.removeEventListener('play', trackedHandlers.update);
+            trackedVideo.removeEventListener('pause', trackedHandlers.update);
+            trackedVideo.removeEventListener('ended', trackedHandlers.ended);
+            trackedVideo.removeEventListener('emptied', trackedHandlers.update);
+        }
+
+        trackedVideo = video;
+        trackedHandlers = {
+            update: function () {
+                setPositionStateForVideo(video);
+            },
+            ended: function () {
+                setPositionStateForVideo(video);
+                setTimeout(function () {
+                    bindPositionTracking(getVideo());
+                }, 300);
+            },
+        };
+
+        video.addEventListener('timeupdate', trackedHandlers.update);
+        video.addEventListener('loadedmetadata', trackedHandlers.update);
+        video.addEventListener('durationchange', trackedHandlers.update);
+        video.addEventListener('seeked', trackedHandlers.update);
+        video.addEventListener('ratechange', trackedHandlers.update);
+        video.addEventListener('play', trackedHandlers.update);
+        video.addEventListener('pause', trackedHandlers.update);
+        video.addEventListener('ended', trackedHandlers.ended);
+        video.addEventListener('emptied', trackedHandlers.update);
+        setPositionStateForVideo(video);
+    }
+
     // -- Standard PiP with MediaSession controls --
     async function togglePip() {
         var video = getVideo();
         if (!video) return;
+        bindPositionTracking(video);
 
         // Exit if already in PiP
         if (document.pictureInPictureElement === video) {
@@ -117,14 +177,20 @@
         // Seek backward (-10s)
         try {
             navigator.mediaSession.setActionHandler('seekbackward', function (details) {
-                video.currentTime = Math.max(0, video.currentTime - (details.seekOffset || 10));
+                var active = getVideo();
+                if (!active) return;
+                active.currentTime = Math.max(0, active.currentTime - (details.seekOffset || 10));
+                bindPositionTracking(active);
             });
         } catch (e) { }
 
         // Seek forward (+10s)
         try {
             navigator.mediaSession.setActionHandler('seekforward', function (details) {
-                video.currentTime = Math.min(video.duration || Infinity, video.currentTime + (details.seekOffset || 10));
+                var active = getVideo();
+                if (!active) return;
+                active.currentTime = Math.min(active.duration || Infinity, active.currentTime + (details.seekOffset || 10));
+                bindPositionTracking(active);
             });
         } catch (e) { }
 
@@ -133,24 +199,7 @@
             video.loop = true;
         }
 
-        // Keep position state updated
-        function updatePosition() {
-            try {
-                if (video.duration && isFinite(video.duration)) {
-                    navigator.mediaSession.setPositionState({
-                        duration: video.duration,
-                        playbackRate: video.playbackRate || 1,
-                        position: Math.min(video.currentTime, video.duration),
-                    });
-                }
-            } catch (e) { }
-        }
-        video.addEventListener('timeupdate', updatePosition);
-        updatePosition();
-
-        // Update position when video changes (YouTube auto-play / SPA navigation)
-        video.addEventListener('loadedmetadata', updatePosition);
-        video.addEventListener('durationchange', updatePosition);
+        bindPositionTracking(video);
     }
 
     // -- Inject YouTube button --
@@ -190,6 +239,13 @@
     }, 1000);
 
     window.addEventListener('yt-navigate-finish', function () {
-        setTimeout(function () { if (!document.getElementById(BTN_ID)) tryInject(); }, 2000);
+        setTimeout(function () {
+            if (!document.getElementById(BTN_ID)) tryInject();
+            bindPositionTracking(getVideo());
+        }, 2000);
     });
+
+    setInterval(function () {
+        bindPositionTracking(getVideo());
+    }, 1000);
 })();
