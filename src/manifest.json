@@ -37,7 +37,8 @@
     }
   ],
   "commands": {
-    "_execute_action": {
+    "toggle-pip": {
+      "description": "Toggle Picture-in-Picture",
       "suggested_key": {
         "windows": "Alt+P",
         "mac": "Alt+P",

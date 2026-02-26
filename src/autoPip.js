@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
 
 let settings = { ...DEFAULT_SETTINGS };
 let lastAutoPipRequest = 0;
+let shouldResumeAfterPipReturn = false;
 
 function findLargestPlayingVideo() {
   const videos = Array.from(document.querySelectorAll("video"))
@@ -38,6 +39,20 @@ function findLargestPlayingVideo() {
   return videos[0];
 }
 
+function hookVideoLifecycle(video) {
+  if (!video || video.__pipPlusHooked) {
+    return;
+  }
+
+  video.__pipPlusHooked = true;
+  video.addEventListener("leavepictureinpicture", () => {
+    shouldResumeAfterPipReturn = true;
+    setTimeout(() => {
+      shouldResumeAfterPipReturn = false;
+    }, 15000);
+  });
+}
+
 function loadSettings() {
   chrome.storage.sync.get(SETTINGS_KEY, (data) => {
     settings = {
@@ -47,19 +62,31 @@ function loadSettings() {
   });
 }
 
-function maybeRequestAutoPip() {
+async function maybeRequestAutoPip() {
   const now = Date.now();
   if (now - lastAutoPipRequest < 1000) {
     return;
   }
 
   const video = findLargestPlayingVideo();
-  if (!video || video.paused || video.ended || document.pictureInPictureElement === video) {
+  if (!video || video.ended || document.pictureInPictureElement === video) {
+    return;
+  }
+
+  hookVideoLifecycle(video);
+
+  if (video.paused && shouldResumeAfterPipReturn) {
+    try {
+      await video.play();
+    } catch (_) {}
+  }
+
+  if (video.paused) {
     return;
   }
 
   lastAutoPipRequest = now;
-  video.requestPictureInPicture().catch(() => {});
+  await video.requestPictureInPicture().catch(() => {});
 }
 
 // Requests PiP when Chrome triggers the automatic PiP media action.
@@ -70,6 +97,7 @@ navigator.mediaSession.setActionHandler("enterpictureinpicture", () => {
 });
 
 loadSettings();
+hookVideoLifecycle(findLargestPlayingVideo());
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "sync" && changes[SETTINGS_KEY]) {
@@ -100,4 +128,8 @@ window.addEventListener("blur", () => {
       maybeRequestAutoPip();
     }
   }, 50);
+});
+
+window.addEventListener("focus", () => {
+  hookVideoLifecycle(findLargestPlayingVideo());
 });

@@ -54,7 +54,9 @@
         settings.autoPip = optAutoPip.checked;
         settings.autoPipMinimize = optAutoPipMinimize.checked;
         settings.loopToggle = optLoop.checked;
-        chrome.storage.sync.set({ [SETTINGS_KEY]: settings });
+        chrome.storage.sync.set({ [SETTINGS_KEY]: settings }, () => {
+            chrome.runtime.sendMessage({ type: 'PIP_PLUS_SETTINGS_UPDATED' }).catch(() => { });
+        });
     }
 
     optAutoPip.addEventListener('change', saveSettings);

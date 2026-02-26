@@ -22,6 +22,34 @@ chrome.action.onClicked.addListener((tab) => {
   });
 });
 
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "toggle-pip") {
+    return;
+  }
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    return;
+  }
+
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id, allFrames: true },
+    files: ["script.js"],
+  }).catch(() => {});
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "PIP_PLUS_SETTINGS_UPDATED") {
+    return;
+  }
+
+  refreshAutoPipState()
+    .then(() => sendResponse({ ok: true }))
+    .catch(() => sendResponse({ ok: false }));
+
+  return true;
+});
+
 chrome.runtime.onInstalled.addListener(async () => {
   const { autoPip } = await chrome.storage.local.get({ autoPip: true });
   chrome.contextMenus.create({
@@ -62,6 +90,10 @@ async function refreshAutoPipState() {
   const enabled = !!(menuAutoPip || settings.autoPip || settings.autoPipMinimize);
 
   await updateContentScripts(enabled);
+
+  if (enabled) {
+    await ensureAutoPipOnActiveTab();
+  }
 }
 
 // Registers or removes the auto PiP content script.
@@ -81,4 +113,16 @@ async function updateContentScripts(autoPipEnabled) {
     matches: ["<all_urls>"],
     runAt: "document_start"
   }]);
+}
+
+async function ensureAutoPipOnActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    return;
+  }
+
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id, allFrames: true },
+    files: ["autoPip.js"],
+  }).catch(() => {});
 }
