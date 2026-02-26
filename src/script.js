@@ -30,25 +30,9 @@ function findLargestPlayingVideo() {
 }
 
 async function requestPictureInPicture(video) {
-  if (!video) {
-    return;
-  }
-
-  // Exit any existing PiP first
-  if (document.pictureInPictureElement) {
-    await document.exitPictureInPicture().catch(() => {});
-  }
-
-  // Ensure video is playing -- after returning from PiP the browser
-  // may have paused it. This is the same reason pause/resume "fixes" it.
-  // chrome.scripting.executeScript from background gives us permission.
-  if (video.paused) {
-    await video.play().catch(() => {});
-  }
-
   await video.requestPictureInPicture();
   video.setAttribute('__pip__', true);
-  video.addEventListener('leavepictureinpicture', () => {
+  video.addEventListener('leavepictureinpicture', event => {
     video.removeAttribute('__pip__');
   }, { once: true });
   new ResizeObserver(maybeUpdatePictureInPictureVideo).observe(video);
@@ -72,15 +56,9 @@ function maybeUpdatePictureInPictureVideo(entries, observer) {
   if (!video) {
     return;
   }
-
-  // If already in PiP, exit
-  if (document.pictureInPictureElement) {
-    await document.exitPictureInPicture().catch(() => {});
+  if (video.hasAttribute('__pip__')) {
+    document.exitPictureInPicture();
     return;
   }
-
-  // Clean up stale attribute
-  video.removeAttribute('__pip__');
-
   await requestPictureInPicture(video);
 })();

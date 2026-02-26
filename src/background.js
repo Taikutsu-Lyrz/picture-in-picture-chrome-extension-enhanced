@@ -14,28 +14,14 @@
 
 const SETTINGS_KEY = "pipPlusSettings";
 
-// Shared helper: inject script.js into a tab to toggle PiP.
-// chrome.scripting.executeScript runs with extension permissions,
-// which provides the user-gesture context needed for
-// requestPictureInPicture() -- even after returning from PiP.
-// This is the same mechanism Chrome uses internally for tab-switch auto PiP.
-async function injectPipToggle(tabId) {
-  if (!tabId) {
-    return;
-  }
-
-  await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    files: ["script.js"],
-  }).catch(() => {});
-}
-
 // Runs when the extension action icon is clicked.
 chrome.action.onClicked.addListener((tab) => {
-  injectPipToggle(tab.id);
+  chrome.scripting.executeScript({
+    target: { tabId: tab.id, allFrames: true },
+    files: ["script.js"],
+  });
 });
 
-// Alt+P keyboard shortcut
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== "toggle-pip") {
     return;
@@ -46,33 +32,22 @@ chrome.commands.onCommand.addListener(async (command) => {
     return;
   }
 
-  await injectPipToggle(tab.id);
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id, allFrames: true },
+    files: ["script.js"],
+  }).catch(() => {});
 });
 
-// Handle messages from content scripts
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === "PIP_PLUS_SETTINGS_UPDATED") {
-    refreshAutoPipState()
-      .then(() => sendResponse({ ok: true }))
-      .catch(() => sendResponse({ ok: false }));
-    return true;
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "PIP_PLUS_SETTINGS_UPDATED") {
+    return;
   }
 
-  // autoPip.js asks us to toggle PiP via background injection.
-  // This is the fix: content scripts can't call requestPictureInPicture()
-  // without user gesture after returning from PiP. But
-  // chrome.scripting.executeScript from the background can.
-  if (message?.type === "PIP_PLUS_REQUEST_PIP") {
-    const tabId = sender?.tab?.id;
-    if (tabId) {
-      injectPipToggle(tabId)
-        .then(() => sendResponse({ ok: true }))
-        .catch(() => sendResponse({ ok: false }));
-    } else {
-      sendResponse({ ok: false });
-    }
-    return true;
-  }
+  refreshAutoPipState()
+    .then(() => sendResponse({ ok: true }))
+    .catch(() => sendResponse({ ok: false }));
+
+  return true;
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
